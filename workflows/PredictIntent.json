@@ -1,0 +1,84 @@
+{
+  "name": "PredictIntent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "predict",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "896b48a7-491a-403f-856a-9ae5036a7cdb",
+      "name": "Webhook",
+      "webhookId": "50df0533-e33b-4011-8351-4a1b2f8d9ca4"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Basic intent detection\nconst text = $json.body?.text?.toLowerCase() || \"\";\nlet intent = \"unknown\";\nlet entities = {};\nlet type = null;\nlet message = null;\n\n// Detect price / estimate intent\nif (text.includes(\"price\") || text.includes(\"cost\") || text.includes(\"how much\")) {\n  intent = \"request_estimate\";\n  if (text.includes(\"website\")) {\n    entities.service_type = \"web app\";\n  } else if (text.includes(\"mobile\")) {\n    entities.service_type = \"mobile app\";\n  }\n\n// General knowledge / RAG\n} else {\n  intent = \"general_question\";\n\n  // Check if query is vague\n  const vague = text.length < 5 || !/\\w+/.test(text) || /(tell me more|info|details)/i.test(text);\n  if (vague) {\n    type = \"clarification\";\n    message = \"I can help with that. Are you asking about our web or mobile services?\";\n  }\n}\n\nreturn [{\n  intent,\n  entities,\n  type,\n  message\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "1acb3b88-939d-42c4-b9fd-ae578a88576f",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        416,
+        0
+      ],
+      "id": "fe8ac105-f9ed-4d0b-b077-628ddf464688",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "dd536a48-fc58-4738-9ccf-2894f3458d82",
+  "meta": {
+    "instanceId": "e5f66466ff6579767710754a6e2e52aed356ea61c16d04bcaed0310da1778895"
+  },
+  "id": "KvBZua8E5zB2L3BZ",
+  "tags": []
+}

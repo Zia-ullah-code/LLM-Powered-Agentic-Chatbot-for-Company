@@ -1,0 +1,971 @@
+{
+  "name": "NightlyIngest",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 2 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "id": "370bda7d-849b-4110-8d0d-1d688da1cca7",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://thehexaa.ai/",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "d57629f7-32cd-461f-95f7-0a2dfcd079cb",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "html": "={{ $json.data }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.markdown",
+      "typeVersion": 1,
+      "position": [
+        416,
+        0
+      ],
+      "id": "c6cc234a-5e8d-47bd-b41f-c7efd823a6dd",
+      "name": "Markdown"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Configurable chunk size & overlap\nconst chunkSize = 500; // characters\nconst overlap = 50; // characters overlap between chunks\n\n// Get text from previous node\nconst text = items.map(i => i.json.data).join(\" \"); // combine if multiple\n\n// Create chunks with overlap\nlet chunks = [];\nfor (let i = 0; i < text.length; i += chunkSize - overlap) {\n  const chunk = text.slice(i, i + chunkSize);\n  chunks.push(chunk);\n}\n\n// Return chunks for next node\nreturn chunks.map(c => ({\n  json: { chunk: c }\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        624,
+        0
+      ],
+      "id": "563cb57c-ed68-43a5-9a2a-42baa842923c",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://embedder:8000/embed",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.chunk }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        832,
+        0
+      ],
+      "id": "ce63210d-9f40-4575-addd-5a58b1bf4376",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "jsCode": "function simpleHash(str) {\n  if (typeof str !== 'string') return '00000000';\n  let hash = 0;\n  for (let i = 0; i < str.length; i++) {\n    hash = (hash << 5) - hash + str.charCodeAt(i);\n    hash |= 0;\n  }\n  return Math.abs(hash).toString(16).padStart(8, '0');\n}\n\n// Get data from both nodes by name\nconst chunks = $items(\"Code\");            // 👈 Replace with actual node name for chunks\nconst embeddings = $items(\"HTTP Request1\"); // 👈 Replace with actual node name for embeddings\n\nif (chunks.length !== embeddings.length) {\n  throw new Error(\"Chunk and embedding count mismatch\");\n}\n\nconst ids = [];\nconst documents = [];\nconst vectors = [];\nconst metadatas = [];\n\nfor (let i = 0; i < chunks.length; i++) {\n  const chunkText = chunks[i].json.chunk;\n  const embedding = embeddings[i].json.embedding;\n\n  if (typeof chunkText !== 'string' || !Array.isArray(embedding)) continue;\n\n  ids.push(simpleHash(chunkText));\n  documents.push(chunkText);\n  vectors.push(embedding);\n  metadatas.push({ source: \"web_ingest\" }); // Add custom metadata if needed\n}\n\nreturn [{\n  json: {\n    ids,\n    documents,\n    embeddings: vectors,\n    metadatas\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1024,
+        -96
+      ],
+      "id": "ce4fd402-85aa-4fc4-b8d9-e4e4086ffa34",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "url": "http://chroma:8000/api/v1/collections",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1024,
+        64
+      ],
+      "id": "175cb7db-25b7-41fd-881b-36d007f1634a",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://chroma:8000/api/v1/collections",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"name\": \"knowledge_base\" }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -336,
+        -368
+      ],
+      "id": "b6710799-c0fe-4759-a52d-1d9b9994cf89",
+      "name": "HTTP Request3"
+    },
+    {
+      "parameters": {
+        "select": "user",
+        "user": {
+          "__rl": true,
+          "value": "@ZiaUllah",
+          "mode": "username"
+        },
+        "text": "done",
+        "otherOptions": {}
+      },
+      "type": "n8n-nodes-base.slack",
+      "typeVersion": 2.3,
+      "position": [
+        1872,
+        32
+      ],
+      "id": "6234b4a3-ad28-4863-bde9-38e9b9d780b2",
+      "name": "Send a message",
+      "webhookId": "7fa557c5-48d3-4bc9-baa1-88428bb5fea6",
+      "credentials": {
+        "slackApi": {
+          "id": "bKV4fWShMizTDm1Q",
+          "name": "Slack account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=http://chroma:8000/api/v1/collections/knowledge_base",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1296,
+        -96
+      ],
+      "id": "ce88a051-5273-4d8f-8283-9b305f12a720",
+      "name": "HTTP Request4"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\n\nreturn $input.first();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        128
+      ],
+      "id": "511ef6da-32db-45b0-b9f6-87cb603ec674",
+      "name": "Code2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://chroma:8000/api/v1/collections",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"name\": \"knowledge_base\" }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1472,
+        32
+      ],
+      "id": "80d7ea90-53a8-4113-8071-cf17dc62789c",
+      "name": "HTTP Request5"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://chroma:8000/api/v1/collections/{{ $json.collection_id }}/add",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "ids",
+              "value": "={{ $json.ids }}"
+            },
+            {
+              "name": "documents",
+              "value": "={{ $json.documents }}"
+            },
+            {
+              "name": "embeddings",
+              "value": "={{ $json.embeddings }}"
+            },
+            {
+              "name": "metadatas",
+              "value": "={{ $json.metadatas }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2032,
+        -128
+      ],
+      "id": "0db92eb5-6637-4267-af97-90ba8409e32b",
+      "name": "HTTP Request6"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1632,
+        -128
+      ],
+      "id": "605d164a-dd87-45f4-ac6e-1e7a5ea1a1ab",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    collection_id: items[0].json.id,         // from collection info\n    ids: items[1].json.ids,                  // from chunk data\n    documents: items[1].json.documents,\n    embeddings: items[1].json.embeddings,\n    metadatas: items[1].json.metadatas\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1792,
+        -160
+      ],
+      "id": "f10ef340-5e2d-4dfb-bfae-8447d7b71dfe",
+      "name": "Code3"
+    },
+    {
+      "parameters": {
+        "url": "http://chroma:8000/api/v1/collections/knowledge_base",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2272,
+        -112
+      ],
+      "id": "e0f4c7b7-368d-47bf-b870-16e91be2e5e4",
+      "name": "HTTP Request7"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://chroma:8000/api/v1/collections/{{ $json.id }}/query",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"query_embeddings\": [\n    [\n\n-0.012222335673868656,\n0.08540076017379761,\n0.08705199509859085,\n0.09433476626873016,\n-0.023410402238368988,\n0.007912417873740196,\n0.09830358624458313,\n0.039176128804683685,\n-0.038864728063344955,\n0.04205983504652977,\n-0.015714004635810852,\n0.031005552038550377\n    ]\n  ],\n  \"n_results\": 3\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2352,
+        -416
+      ],
+      "id": "00cfa266-6116-4d0c-82fe-c7413f5eb6d5",
+      "name": "HTTP Request8"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\nfor (const item of $input.all()) {\n  item.json.myNewField = 1;\n}\n\nreturn $input.all();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -64,
+        -624
+      ],
+      "id": "a68ae577-2dfc-498f-8a00-ff798d0fae9f",
+      "name": "Code4"
+    },
+    {
+      "parameters": {
+        "jsCode": "// N8N Code Node - Extract webpage links from thehexaa.ai\n// This code extracts only webpage links (not assets) from the HTML content\n\n// Get the HTML data from the input\nconst htmlData = $input.all()[0].json.data;\n\n// Function to extract webpage links from HTML\nfunction extractWebpageLinks(html) {\n  const links = [];\n  const baseUrl = 'https://thehexaa.ai';\n  \n  // Asset file extensions to exclude\n  const assetExtensions = [\n    '.png', '.jpg', '.jpeg', '.gif', '.svg', '.webp', '.ico', '.bmp',\n    '.css', '.js', '.json', '.xml', '.txt', '.pdf', '.doc', '.docx',\n    '.zip', '.rar', '.mp4', '.mp3', '.avi', '.mov', '.wav', '.woff',\n    '.woff2', '.ttf', '.eot', '.otf'\n  ];\n  \n  // Regular expression to find href attributes\n  const hrefRegex = /href\\s*=\\s*[\"']([^\"']+)[\"']/gi;\n  let match;\n  \n  // Extract all href values\n  while ((match = hrefRegex.exec(html)) !== null) {\n    let url = match[1];\n    \n    // Skip empty hrefs, anchors, javascript, mailto, tel links\n    if (!url || url.startsWith('#') || url.startsWith('javascript:') || \n        url.startsWith('mailto:') || url.startsWith('tel:')) {\n      continue;\n    }\n    \n    // Convert relative URLs to absolute URLs\n    if (url.startsWith('/')) {\n      url = baseUrl + url;\n    } else if (url.startsWith('./')) {\n      url = baseUrl + url.substring(1);\n    } else if (!url.startsWith('http')) {\n      url = baseUrl + '/' + url;\n    }\n    \n    // Only include links that start with the target domain\n    if (url.startsWith('https://thehexaa.ai/')) {\n      // Check if URL ends with asset extension\n      const isAsset = assetExtensions.some(ext => \n        url.toLowerCase().includes(ext)\n      );\n      \n      // Skip asset files and URLs containing common asset paths\n      const isAssetPath = url.includes('/assets/') || \n                         url.includes('/images/') || \n                         url.includes('/css/') || \n                         url.includes('/js/') ||\n                         url.includes('/_next/static/') ||\n                         url.includes('/static/');\n      \n      // Only include if it's not an asset and not a duplicate\n      if (!isAsset && !isAssetPath && !links.includes(url)) {\n        links.push(url);\n      }\n    }\n  }\n  \n  return links;\n}\n\n// Extract the webpage links\nconst extractedLinks = extractWebpageLinks(htmlData);\n\n// Create output format - each link as a separate item\nconst output = extractedLinks.map(link => ({\n  url: link,\n  domain: 'thehexaa.ai',\n  extracted_at: new Date().toISOString()\n}));\n\n// Alternative: Return as single item with array of links\n// const output = [{\n//   links: extractedLinks,\n//   total_links: extractedLinks.length,\n//   domain: 'thehexaa.ai',\n//   extracted_at: new Date().toISOString()\n// }];\n\nreturn output;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        -576
+      ],
+      "id": "8801e2fd-cbfe-4913-85cd-31f80c9d1af2",
+      "name": "Code5",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "url": "https://thehexaa.ai",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        112,
+        -464
+      ],
+      "id": "55a3480b-7386-4ba8-93d4-2b0dffc90f56",
+      "name": "HTTP Request9"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        288,
+        -416
+      ],
+      "id": "dbdba007-d926-45ab-b776-7c3adb23b040",
+      "name": "HTTP Request10"
+    },
+    {
+      "parameters": {
+        "html": "={{ $json.data }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.markdown",
+      "typeVersion": 1,
+      "position": [
+        448,
+        -480
+      ],
+      "id": "3a82c6ff-e1be-408f-a570-fe985593234a",
+      "name": "Markdown1"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Configurable chunk size & overlap\nconst chunkSize = 500; // characters\nconst overlap = 50; // characters overlap between chunks\n\n// Get text from previous node\nconst text = items.map(i => i.json.data).join(\" \"); // combine if multiple\n\n// Create chunks with overlap\nlet chunks = [];\nfor (let i = 0; i < text.length; i += chunkSize - overlap) {\n  const chunk = text.slice(i, i + chunkSize);\n  chunks.push(chunk);\n}\n\n// Return chunks for next node\nreturn chunks.map(c => ({\n  json: { chunk: c }\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        -352
+      ],
+      "id": "61dc8ddc-26eb-4dea-9e24-25b8b968680f",
+      "name": "Code6"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://embedder:8000/embed",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.chunk }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        768,
+        -544
+      ],
+      "id": "b8b2110a-885d-4b5f-9c2a-681a22f24dff",
+      "name": "HTTP Request11"
+    },
+    {
+      "parameters": {
+        "jsCode": "function simpleHash(str) {\n  if (typeof str !== 'string') return '00000000';\n  let hash = 0;\n  for (let i = 0; i < str.length; i++) {\n    hash = (hash << 5) - hash + str.charCodeAt(i);\n    hash |= 0;\n  }\n  return Math.abs(hash).toString(16).padStart(8, '0');\n}\n\n// Get data from both nodes by name\nconst chunks = $items(\"Code6\");            // 👈 Replace with actual node name for chunks\nconst embeddings = $items(\"HTTP Request11\"); // 👈 Replace with actual node name for embeddings\n\nif (chunks.length !== embeddings.length) {\n  throw new Error(\"Chunk and embedding count mismatch\");\n}\n\nconst ids = [];\nconst documents = [];\nconst vectors = [];\nconst metadatas = [];\n\nfor (let i = 0; i < chunks.length; i++) {\n  const chunkText = chunks[i].json.chunk;\n  const embedding = embeddings[i].json.embedding;\n\n  if (typeof chunkText !== 'string' || !Array.isArray(embedding)) continue;\n\n  ids.push(simpleHash(chunkText));\n  documents.push(chunkText);\n  vectors.push(embedding);\n  metadatas.push({ source: \"web_ingest\" }); // Add custom metadata if needed\n}\n\nreturn [{\n  json: {\n    ids,\n    documents,\n    embeddings: vectors,\n    metadatas\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        -768
+      ],
+      "id": "495fa9fb-c05e-439a-844a-b73a80a5e527",
+      "name": "Code7"
+    },
+    {
+      "parameters": {
+        "url": "http://chroma:8000/api/v1/collections",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1008,
+        -448
+      ],
+      "id": "28407732-b2b9-453b-8a4f-44e0228b320c",
+      "name": "HTTP Request12"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\n\nreturn $input.first();"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        -512
+      ],
+      "id": "177cc803-71f6-4c33-b66d-97d42b9de689",
+      "name": "Code8"
+    },
+    {
+      "parameters": {
+        "method": "DELETE",
+        "url": "=http://chroma:8000/api/v1/collections/knowledge_base",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1328,
+        -432
+      ],
+      "id": "4a2d73d3-0b28-41f3-80fa-727dcb0cb31b",
+      "name": "HTTP Request13"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://chroma:8000/api/v1/collections",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"name\": \"knowledge_base\" }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1472,
+        -544
+      ],
+      "id": "4ae01829-8c25-4b24-a30d-531bbc6d9d0f",
+      "name": "HTTP Request14"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1632,
+        -688
+      ],
+      "id": "56f13dc5-9220-4650-bd3b-30e81d6dfbf0",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    collection_id: items[0].json.id,         // from collection info\n    ids: items[1].json.ids,                  // from chunk data\n    documents: items[1].json.documents,\n    embeddings: items[1].json.embeddings,\n    metadatas: items[1].json.metadatas\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1824,
+        -688
+      ],
+      "id": "f1e05c4e-2f9b-4302-a588-41cea7f0297e",
+      "name": "Code9"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://chroma:8000/api/v1/collections/{{ $json.collection_id }}/add",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "ids",
+              "value": "={{ $json.ids }}"
+            },
+            {
+              "name": "documents",
+              "value": "={{ $json.documents }}"
+            },
+            {
+              "name": "embeddings",
+              "value": "={{ $json.embeddings }}"
+            },
+            {
+              "name": "metadatas",
+              "value": "={{ $json.metadatas }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2064,
+        -688
+      ],
+      "id": "1f529551-2fb7-42dd-b579-981d7ceef61e",
+      "name": "HTTP Request15"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://chroma:8000/api/v1/collections/{{ $json.collection_id }}/add",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "ids",
+              "value": "={{ $json.ids }}"
+            },
+            {
+              "name": "documents",
+              "value": "={{ $json.documents }}"
+            },
+            {
+              "name": "embeddings",
+              "value": "={{ $json.embeddings }}"
+            },
+            {
+              "name": "metadatas",
+              "value": "={{ $json.metadatas }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2304,
+        -656
+      ],
+      "id": "9c8f7950-e2b7-4c49-bc11-c2c08aee491d",
+      "name": "HTTP Request16"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://chroma:8000/api/v1/collections",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{ \"name\": \"knowledge_base\" }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1792,
+        -448
+      ],
+      "id": "540b94da-6c98-4be5-9dad-755d14c4cb75",
+      "name": "HTTP Request17"
+    },
+    {
+      "parameters": {
+        "path": "admin",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -96,
+        -304
+      ],
+      "id": "d8079e8c-07b0-4425-b79c-1935bdf05dec",
+      "name": "Webhook",
+      "webhookId": "e3bcdcb6-2832-4d62-9595-58e117fc6555"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"text\": \"[ Re-index Knowledge Base ]\",\n  \"Last re-index\": \"2025-08-28 02:00 AM\"\n\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2512,
+        -656
+      ],
+      "id": "d04a10ac-4b2a-48e1-8482-72bb1c552b8f",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Markdown",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Markdown": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "Code2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request4": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request3": {
+      "main": [
+        []
+      ]
+    },
+    "HTTP Request5": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code3": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request6": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request7": {
+      "main": [
+        []
+      ]
+    },
+    "Code5": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request10",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request9": {
+      "main": [
+        [
+          {
+            "node": "Code5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request10": {
+      "main": [
+        [
+          {
+            "node": "Markdown1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Markdown1": {
+      "main": [
+        [
+          {
+            "node": "Code6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code6": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request11",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request11": {
+      "main": [
+        [
+          {
+            "node": "Code7",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "HTTP Request12",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request12": {
+      "main": [
+        [
+          {
+            "node": "Code8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code8": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request13",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request13": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request14",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code7": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "HTTP Request14": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Code9",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code9": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request15",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request15": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request16",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        []
+      ]
+    },
+    "HTTP Request16": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "15c1ba49-ca29-4396-aa55-ca64f963a5c5",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e5f66466ff6579767710754a6e2e52aed356ea61c16d04bcaed0310da1778895"
+  },
+  "id": "HCuRCPj6RwlQ5qYE",
+  "tags": []
+}
