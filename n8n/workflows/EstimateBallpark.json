@@ -1,0 +1,83 @@
+{
+  "name": "EstimateBallpark",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "estimate",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -16,
+        -48
+      ],
+      "id": "ecdf507d-ba20-4d88-816e-8ffa2f8f7645",
+      "name": "Webhook",
+      "webhookId": "0d707b22-d49a-4aa8-a22a-f4fbe1fe9573"
+    },
+    {
+      "parameters": {
+        "jsCode": "const service_type = $json.body.service_type;\nconst pages = parseInt($json.body.pages, 10);\n\nlet estimate = 0;\nif (service_type === \"web app\" && pages > 10) {\n  estimate = 5000;\n} else if (service_type === \"web app\") {\n  estimate = 3000;\n}\n\nreturn [{ estimate }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        -48
+      ],
+      "id": "ec5d8284-110b-44c9-aa50-a8a822346d52",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        400,
+        -48
+      ],
+      "id": "05dceeb2-4b24-44b0-a87f-3a9e15d57323",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a187e16a-a0f1-4cab-a100-a07d470f752e",
+  "meta": {
+    "instanceId": "e5f66466ff6579767710754a6e2e52aed356ea61c16d04bcaed0310da1778895"
+  },
+  "id": "GSZIAVDKivW3cedz",
+  "tags": []
+}

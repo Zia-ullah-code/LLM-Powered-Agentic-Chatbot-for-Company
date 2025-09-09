@@ -1,0 +1,754 @@
+{
+  "name": "AnswerQuery",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "answer",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "40e26baa-4ee4-4792-b456-6554a8ed382a",
+      "name": "Webhook",
+      "webhookId": "6059cd9a-a47e-4cb6-b532-245bb95b3b3f"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://chroma:8000/api/v1/collections/{{ $json.id }}/query",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"query_embeddings\": [{{ JSON.stringify($('HTTP Request').item.json.embedding) }}],\n  \"n_results\": 10\n}\n",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        496,
+        -80
+      ],
+      "id": "5448740f-a497-4029-984e-530710a14b08",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://embedder:8000/embed",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{ $json.body.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        208,
+        -144
+      ],
+      "id": "cc7d39a3-0c22-4c12-96a8-38367e84bd8e",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        2096,
+        64
+      ],
+      "id": "68e88fdb-b3ed-4e1c-9f74-1c436394ba8c",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "url": "http://chroma:8000/api/v1/collections",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        352,
+        -240
+      ],
+      "id": "43e56710-24ad-419a-a915-37373e977031",
+      "name": "HTTP Request2"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "576437e7-1cb3-4617-adaa-aa732a4ea1bf",
+              "leftValue": "={{ $json.documents }}",
+              "rightValue": 1,
+              "operator": {
+                "type": "array",
+                "operation": "lengthLt",
+                "rightType": "number"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        720,
+        -144
+      ],
+      "id": "84a0ed32-2416-4c6a-96ac-14b6b3848d2a",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        1312,
+        -416
+      ],
+      "id": "d4960b7f-ad97-4872-8909-f596ae978634",
+      "name": "When chat message received",
+      "webhookId": "79c8fd70-9d9e-4628-8f92-b04627443df1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a professional customer service assistant for our company.  \nYou must follow these rules:  \n\n1. Always base your answers ONLY on the provided context (retrieved company information). If a user asks for something outside our services, politely decline and redirect to our relevant offerings.  \n2. Maintain a friendly, professional, and helpful tone at all times.  \n3. Remember the conversation history and use it to understand the client's requirements and avoid repeating questions unnecessarily.  \n4. Your goal is to determine the **project size**:  \n   - Small: 1–2 developers, ≤ 1 month of work.  \n   - Normal: 3–5 developers, 2–6 months.  \n   - Large: 6+ developers, > 6 months.  \n5. If you do not yet have enough details to determine the size, ask clear follow-up questions (e.g., number of features, integrations, target platforms, design complexity).  \n6. Once enough information is collected, state the estimated project size and provide an **estimated cost range**:  \n   - Small: $3,000 – $8,000  \n   - Normal: $8,000 – $25,000  \n   - Large: $25,000+  \n7. Always explain briefly why you chose that project size and estimate.  \n8. Include the sources from the provided context when relevant.  \n\n---\n\nConversation so far:  \n{{ $json.history.map(h => h.role + ': ' + h.text).join('\\n') }}\n\nContext (company information and capabilities):  \n{{ $json.documents }}\n\nUser's latest message:  \n{{ $json.history[$json.history.length - 1].text }}\n\n---\n\nBased on the above, respond to the user while following all rules above.\n",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1024,
+        0
+      ],
+      "id": "f3b70b2c-a17f-4049-b149-8ce81b229669",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1056,
+        176
+      ],
+      "id": "c257008c-57aa-4349-b212-0442246b95ab",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "t33rlrBs5VQTGbOL",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get the \"text\" value from the incoming item\nconst answerText = $json.text;\n\n// Get metadata from the HTTP Request1 node\nconst httpData = $node['HTTP Request1'].json.metadatas[0];\n\n// Build the custom response object\nconst response = {\n  type: \"answer\",\n  answer: answerText,\n  sources: [\n    httpData[0]?.source || null,\n    httpData[1]?.source || null,\n    httpData[2]?.source || null,\n    httpData[3]?.source || null,\n    httpData[4]?.source || null\n  ]\n};\n\n// Return it as the only output item\nreturn [\n  {\n    json: response\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        0
+      ],
+      "id": "b29f1eef-d609-4297-98b3-27d02948e9cd",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: {\n      type: \"clarification\",\n      message: \"I can help with that. Are you asking about web or mobile services?\"\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        -240
+      ],
+      "id": "b96e7546-a5bf-4d5b-ac38-0c4715d2ac29",
+      "name": "Code1"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1136,
+        -240
+      ],
+      "id": "8d30cebc-2b24-4045-9c5e-df5517a4108a",
+      "name": "Respond to Webhook1"
+    },
+    {
+      "parameters": {
+        "operation": "html",
+        "binaryPropertyName": "={{ $json.data }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        976,
+        -560
+      ],
+      "id": "93015d84-11d9-4875-8520-ca68c539d080",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        528,
+        -480
+      ],
+      "id": "1e688e9b-809e-4ce5-8019-11159fcce82b",
+      "name": "Groq Chat Model"
+    },
+    {
+      "parameters": {
+        "operation": "incr"
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        720,
+        -480
+      ],
+      "id": "cae89a30-384e-4f0c-9782-1a46e6f4f23d",
+      "name": "Redis"
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryRedisChat",
+      "typeVersion": 1.5,
+      "position": [
+        384,
+        -528
+      ],
+      "id": "b41d168d-0780-4057-b354-8ce9d2070c61",
+      "name": "Redis Chat Memory"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "key": "={{ $json.body.conversation_id }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        144,
+        144
+      ],
+      "id": "e56e7d12-2339-4f17-bb14-249312d184cd",
+      "name": "Redis1",
+      "credentials": {
+        "redis": {
+          "id": "xsH7z4s7u3XnKPSu",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "d261ce58-0565-4c9b-bd3c-3501f44485cd",
+              "leftValue": "={{ $json[\"propertyName\"]}}",
+              "rightValue": "=null",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        64,
+        400
+      ],
+      "id": "5f06dfa4-696c-4d00-a317-9291c195c398",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "jsCode": "let history = JSON.parse($json);\nhistory.push({ role: \"user\", $input.first().json.propertyName });\nreturn [{ json: { history } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        512
+      ],
+      "id": "1bce84fe-2555-4647-81e9-d3b4b2a05417",
+      "name": "Code2"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { history: [{ role: \"user\", text: $('Webhook').first().json.body.text }] }}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        272,
+        416
+      ],
+      "id": "b7abe41c-a2a1-4052-8ff6-170ddb246559",
+      "name": "Code3"
+    },
+    {
+      "parameters": {
+        "jsCode": "//let history = $json.history || [];\nlet history = $('Code6').first().json.history || [];\nhistory.push({ role: \"assistant\", text: $input.first().json.text });\nreturn [{ json: { history } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        208
+      ],
+      "id": "62fc1930-42f3-4572-b23c-0674a5457324",
+      "name": "Code4"
+    },
+    {
+      "parameters": {
+        "operation": "set",
+        "key": "={{ $('Code6').item.json.conversation_id }}",
+        "value": "={{ JSON.stringify($json.history) }}",
+        "expire": true,
+        "ttl": 86400
+      },
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1552,
+        208
+      ],
+      "id": "6bf78715-508d-44d7-9251-af1e31e18bb3",
+      "name": "Redis2",
+      "credentials": {
+        "redis": {
+          "id": "xsH7z4s7u3XnKPSu",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get previous history from Redis Get node\nlet history = [];\ntry {\n  const raw = $json.propertyName;\n  if (raw) {\n    history = JSON.parse(raw);\n  }\n} catch (err) {\n  history = [];\n}\n\n// Add the new user message from webhook\nhistory.push({\n  role: \"user\",\n  text: $('Webhook').first().json.body.text\n});\n\n// Limit to the last 20 messages\nif (history.length > 20) {\n  history = history.slice(history.length - 20);\n}\n\n// Pass to next nodes (LLM can use this)\nreturn [{\n  json: {\n    conversation_id: $('Webhook').first().json.body.conversation_id,\n    history\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        608,
+        208
+      ],
+      "id": "3cd80d81-3bd9-440d-ba6d-a8c352cdab15",
+      "name": "Code5"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        752,
+        32
+      ],
+      "id": "371cfd7c-2d23-4e3d-ab81-8b3c7e63d219",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "jsCode": "// First, let's get both inputs: items[0] and items[1]\nconst firstItem = items[0].json;\nconst secondItem = items[1].json;\n\n// Combine data from both items in a simpler structure\nconst mergedData = {\n  documents: firstItem.documents || [],\n  conversation_id:secondItem.conversation_id || [],\n  history: secondItem.history || []\n};\n\n// Now return the merged data in the required format\nreturn [\n  {\n    json: mergedData\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        400
+      ],
+      "id": "39fef8ee-ce48-4369-b187-86bbadd90e30",
+      "name": "Code6"
+    },
+    {
+      "parameters": {
+        "inputText": "=Do the analysis on chat history and provide the sentiment analysis accordingly, if the client is getting confused.\n\nBelow is the history:\n {{ $json.history.map(h => h.role + ': ' + h.text).join('\\n') }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.sentimentAnalysis",
+      "typeVersion": 1.1,
+      "position": [
+        1040,
+        400
+      ],
+      "id": "bf9f0aef-eff7-4e1e-b766-aac5a78af51f",
+      "name": "Sentiment Analysis"
+    },
+    {
+      "parameters": {
+        "model": "deepseek-r1-distill-llama-70b",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        992,
+        640
+      ],
+      "id": "ff79dbeb-33e0-410e-a669-4de10f7366ca",
+      "name": "Groq Chat Model1",
+      "credentials": {
+        "groqApi": {
+          "id": "n8MBT5pLKF8mdPKi",
+          "name": "Groq account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{\n  json: {\n    type: \"escalation\",\n    answer: \"It sounds like you're having some trouble. Would you like to book a meeting with our team?\",\n    booking_link: \"https://calendly.com/ziahexaa/30min\"\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1408,
+        512
+      ],
+      "id": "083dc5c4-0732-471c-a21e-f2e0aaea76ea",
+      "name": "Code7"
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "mode": "list",
+          "value": ""
+        },
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1.3,
+      "position": [
+        1680,
+        512
+      ],
+      "id": "db195f87-b2cc-45b2-93d7-a10127650a1c",
+      "name": "Create an event"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Redis1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request2": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When chat message received": {
+      "main": [
+        []
+      ]
+    },
+    "Respond to Webhook": {
+      "main": [
+        []
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Code4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Code1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code1": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis1": {
+      "main": [
+        [
+          {
+            "node": "Code5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [],
+        []
+      ]
+    },
+    "Code3": {
+      "main": [
+        []
+      ]
+    },
+    "Code2": {
+      "main": [
+        []
+      ]
+    },
+    "Code4": {
+      "main": [
+        [
+          {
+            "node": "Redis2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code5": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Code6",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code6": {
+      "main": [
+        [
+          {
+            "node": "Sentiment Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis2": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Sentiment Analysis",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sentiment Analysis": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Code7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code7": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "092109fe-2e98-4581-a1ed-1cbea024a82b",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "e5f66466ff6579767710754a6e2e52aed356ea61c16d04bcaed0310da1778895"
+  },
+  "id": "7D1tqYeBDmHN8SXh",
+  "tags": []
+}

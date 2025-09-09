@@ -1,0 +1,38 @@
+# Node dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build outputs
+dist/
+build/
+
+# Docker volumes (data, cache)
+n8n_data/
+chroma_data/
+redis_data/
+embedder_data/
+
+# Local env files
+.env
+*.env.local
+.env.development
+.env.production
+
+# Workflows auto-import (keep these JSONs!)
+# DO NOT ignore `workflows/` folder
+# workflows/*.json
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
+logs/

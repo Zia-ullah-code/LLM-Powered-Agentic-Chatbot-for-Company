@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Panel</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f6f8;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    .card {
+      background: #fff;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+      text-align: center;
+      width: 350px;
+    }
+    h2 {
+      margin-bottom: 20px;
+      color: #1976d2;
+    }
+    button {
+      padding: 12px 24px;
+      background: #1976d2;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    #status {
+      margin-top: 20px;
+      font-size: 14px;
+      color: #333;
+    }
+    #lastUpdated {
+      margin-top: 10px;
+      font-size: 13px;
+      color: #555;
+      background: #f0f0f0;
+      padding: 6px 10px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h2>Admin Panel</h2>
+    <button id="reindexBtn">Re-index Knowledge Base</button>
+    <div id="status"></div>
+    <div id="lastUpdated"></div>
+  </div>
+
+  <script>
+    document.getElementById('reindexBtn').addEventListener('click', async () => {
+      const statusDiv = document.getElementById('status');
+      const lastUpdatedDiv = document.getElementById('lastUpdated');
+      statusDiv.textContent = '🔄 Re-indexing in progress...';
+      lastUpdatedDiv.textContent = '';
+
+      try {
+        const res = await fetch('/webhook/admin', { method: 'POST' });
+        const data = await res.json();
+        statusDiv.textContent = data.text || '✅ Re-index complete';
+        if (data["Last re-index"]) {
+          lastUpdatedDiv.textContent = 'Last re-index: ' + data["Last re-index"];
+        }
+      } catch (err) {
+        console.error(err);
+        statusDiv.textContent = '❌ Error while re-indexing';
+      }
+    });
+  </script>
+</body>
+</html>

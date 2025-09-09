@@ -1,0 +1,5 @@
+fastapi
+uvicorn[standard]
+sentence-transformers>=2.2.2
+transformers
+torch   # if the model requires pytorch; CPU-only is fine but larger
