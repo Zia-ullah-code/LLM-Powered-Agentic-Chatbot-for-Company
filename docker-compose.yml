@@ -1,60 +1,60 @@
-version: '3.8'
+# version: '3.8'
 
-services:
-  n8n:
-    build: ./n8n
-    ports:
-      - "5678:5678" # Public access (Railway will give you a URL)
-    volumes:
-      - ./n8n_data:/home/node/.n8n
-      - ./workflows:/workflows
-    depends_on:
-      - chroma
-      - embedder
-      - redis
-    environment:
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=${N8N_USER}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD}
-      - N8N_HOST=0.0.0.0
-      - N8N_PORT=5678
-      - CHROMA_HOST=chroma
-      - REDIS_HOST=redis
-    restart: unless-stopped
+# services:
+#   n8n:
+#     build: ./n8n
+#     ports:
+#       - "5678:5678" # Public access (Railway will give you a URL)
+#     volumes:
+#       - ./n8n_data:/home/node/.n8n
+#       - ./workflows:/workflows
+#     depends_on:
+#       - chroma
+#       - embedder
+#       - redis
+#     environment:
+#       - N8N_BASIC_AUTH_ACTIVE=true
+#       - N8N_BASIC_AUTH_USER=${N8N_USER}
+#       - N8N_BASIC_AUTH_PASSWORD=${N8N_PASSWORD}
+#       - N8N_HOST=0.0.0.0
+#       - N8N_PORT=5678
+#       - CHROMA_HOST=chroma
+#       - REDIS_HOST=redis
+#     restart: unless-stopped
 
-  chroma:
-    image: chromadb/chroma:0.5.18
-    expose:
-      - "8000" # internal only
-    volumes:
-      - ./chroma_data:/data
-    restart: unless-stopped
+#   chroma:
+#     image: chromadb/chroma:0.5.18
+#     expose:
+#       - "8000" # internal only
+#     volumes:
+#       - ./chroma_data:/data
+#     restart: unless-stopped
 
-  embedder:
-    build: ./embedder
-    expose:
-      - "8000" # internal only
-    environment:
-      - EMBED_MODEL=all-MiniLM-L6-v2
-    restart: unless-stopped
+#   embedder:
+#     build: ./embedder
+#     expose:
+#       - "8000" # internal only
+#     environment:
+#       - EMBED_MODEL=all-MiniLM-L6-v2
+#     restart: unless-stopped
 
-  react:
-    build: ./react-app
-    ports:
-      - "3000:3000" # Public frontend
-    stdin_open: true
-    tty: true
-    restart: unless-stopped
+#   react:
+#     build: ./react-app
+#     ports:
+#       - "3000:3000" # Public frontend
+#     stdin_open: true
+#     tty: true
+#     restart: unless-stopped
 
-  redis:
-    image: redis:6
-    container_name: redis
-    expose:
-      - "6379" # internal only
-    volumes:
-      - ./redis_data:/data
-    command: ["redis-server", "--appendonly", "yes"]
-    restart: unless-stopped
+#   redis:
+#     image: redis:6
+#     container_name: redis
+#     expose:
+#       - "6379" # internal only
+#     volumes:
+#       - ./redis_data:/data
+#     command: ["redis-server", "--appendonly", "yes"]
+#     restart: unless-stopped
 
 
 
@@ -124,49 +124,49 @@ services:
 
 
 
-# # version: '3.8'
+version: '3.8'
 
-# # services:
-# #   n8n:
-# #     #image: n8nio/n8n
-# #     # entrypoint: ["/bin/sh", "-c"]   # Explicitly use shell
-# #     # command: "npm install -g @xenova/transformers && n8n"
-# #     #command: sh -c "npm install -g @xenova/transformers"
-# #     build: ./n8n
-# #     ports:
-# #       - "5678:5678"
-# #     volumes:
-# #       - ./n8n_data:/home/node/.n8n
-# #       #- ./n8n_data:/.n8n
+services:
+  n8n:
+    #image: n8nio/n8n
+    # entrypoint: ["/bin/sh", "-c"]   # Explicitly use shell
+    # command: "npm install -g @xenova/transformers && n8n"
+    #command: sh -c "npm install -g @xenova/transformers"
+    build: ./n8n
+    ports:
+      - "5678:5678"
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+      #- ./n8n_data:/.n8n
 
-# #   chroma:
-# #     image: chromadb/chroma:0.5.18
-# #     ports:
-# #       - "8000:8000"
-# #     volumes:
-# #       - ./chroma_data:/data
+  chroma:
+    image: chromadb/chroma:0.5.18
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./chroma_data:/data
     
-# #   embedder:
-# #     build: ./embedder
-# #     ports:
-# #       - "8001:8000"   # optional host mapping for local curl tests
-# #     environment:
-# #       - EMBED_MODEL=all-MiniLM-L6-v2
-# #     restart: unless-stopped
+  embedder:
+    build: ./embedder
+    ports:
+      - "8001:8000"   # optional host mapping for local curl tests
+    environment:
+      - EMBED_MODEL=all-MiniLM-L6-v2
+    restart: unless-stopped
 
-# #   react:
-# #     build: ./react-app
-# #     ports:
-# #       - "3000:3000"
-# #     stdin_open: true
-# #     tty: true
+  react:
+    build: ./react-app
+    ports:
+      - "3000:3000"
+    stdin_open: true
+    tty: true
 
-# #   redis:
-# #     image: redis:6
-# #     container_name: redis
-# #     ports:
-# #       - "6379:6379"
-# #     volumes:
-# #       - ./redis_data:/data
-# #     command: ["redis-server", "--appendonly", "yes"]
+  redis:
+    image: redis:6
+    container_name: redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
 
